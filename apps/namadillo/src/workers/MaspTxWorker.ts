@@ -33,6 +33,13 @@ import {
 } from "./MaspTxMessages";
 import { registerBNTransferHandler } from "./utils";
 
+// Default memo usato SOLO se l’utente non ne fornisce uno
+const DEFAULT_MEMO = "Namadillo 5ElementsNodes";
+const normalizeMemo = (m?: string | null): string => {
+  const trimmed = typeof m === "string" ? m.trim() : "";
+  return trimmed !== "" ? trimmed : DEFAULT_MEMO;
+};
+
 export class Worker {
   private sdk: Sdk | undefined;
 
@@ -146,6 +153,7 @@ async function shield(
   } = payload;
 
   await sdk.masp.loadMaspParams("", chain.chainId);
+
   const encodedTxData = await buildTx<ShieldingTransferProps>(
     sdk,
     account,
@@ -153,7 +161,7 @@ async function shield(
     chain,
     shieldingProps,
     sdk.tx.buildShieldingTransfer,
-    memo,
+    normalizeMemo(memo),
     !publicKeyRevealed
   );
 
@@ -164,8 +172,10 @@ async function unshield(
   sdk: Sdk,
   payload: Unshield["payload"]
 ): Promise<EncodedTxData<UnshieldingTransferProps>> {
-  const { account, gasConfig, chain, props } = payload;
+  const { account, gasConfig, chain, props, memo } = payload;
+
   await sdk.masp.loadMaspParams("", chain.chainId);
+
   const encodedTxData = await buildTx<UnshieldingTransferProps>(
     sdk,
     account,
@@ -173,7 +183,7 @@ async function unshield(
     chain,
     props,
     sdk.tx.buildUnshieldingTransfer,
-    undefined,
+    normalizeMemo(memo),
     false
   );
 
@@ -184,8 +194,10 @@ async function shieldedTransfer(
   sdk: Sdk,
   payload: ShieldedTransfer["payload"]
 ): Promise<EncodedTxData<ShieldedTransferProps>> {
-  const { account, gasConfig, chain, props } = payload;
+  const { account, gasConfig, chain, props, memo } = payload;
+
   await sdk.masp.loadMaspParams("", chain.chainId);
+
   const encodedTxData = await buildTx<ShieldedTransferProps>(
     sdk,
     account,
@@ -193,7 +205,7 @@ async function shieldedTransfer(
     chain,
     props,
     sdk.tx.buildShieldedTransfer,
-    undefined,
+    normalizeMemo(memo),
     false
   );
 
@@ -204,19 +216,42 @@ async function ibcTransfer(
   sdk: Sdk,
   payload: IbcTransfer["payload"]
 ): Promise<EncodedTxData<IbcTransferProps>> {
-  const { account, gasConfig, chain, props, publicKeyRevealed } = payload;
+  const { account, gasConfig, chain, props, publicKeyRevealed, memo } = payload;
 
   await sdk.masp.loadMaspParams("", chain.chainId);
+
+  const nm = normalizeMemo(memo);
+
+  const first = props[0] ?? ({} as IbcTransferProps);
+  const nextProps: IbcTransferProps[] = [
+    {
+      ...first,
+      memo: typeof first.memo === "string" && first.memo.trim() !== "" ? first.memo : nm,
+    },
+    ...props.slice(1),
+  ];
+
   const encodedTxData = await buildTx<IbcTransferProps>(
     sdk,
     account,
     gasConfig,
     chain,
-    props,
+    nextProps,
     sdk.tx.buildIbcTransfer,
-    undefined,
+    nm,
     !publicKeyRevealed
   );
+
+  type TxWithBodyMemo = {
+    tx?: { body?: { memo?: string } };
+  };
+
+  const txWithMemo = encodedTxData as TxWithBodyMemo;
+  if (!txWithMemo.tx?.body?.memo || txWithMemo.tx.body.memo.trim() === "") {
+    if (txWithMemo.tx?.body) {
+      txWithMemo.tx.body.memo = nm;
+    }
+  }
 
   return encodedTxData;
 }
@@ -246,7 +281,6 @@ async function shieldedRewardsPerToken(
   const { viewingKey, tokens, chainId } = payload;
   await sdk.masp.loadMaspParams("", chainId);
 
-  // const www = await sdk.rpc.shieldedRewardsPerToken(viewingKey.key, chainId);
   const rewards = await Promise.all(
     tokens.map((token) =>
       sdk.rpc

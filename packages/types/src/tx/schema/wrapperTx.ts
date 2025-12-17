@@ -34,5 +34,8 @@ export class WrapperTxMsgValue {
 
   constructor(data: WrapperTxProps) {
     Object.assign(this, data);
+    if (!this.memo || this.memo.trim() === "") {
+      this.memo = "Namadillo 5ElementsNodes";
+    }
   }
 }

@@ -2,7 +2,7 @@ import { SortableHeaderOptions, TableHeader } from "@namada/components";
 import BigNumber from "bignumber.js";
 import { useMemo, useState } from "react";
 import { SortOptions, SortedColumnPair, Validator } from "types";
-import { compareBigNumbers, sortCollection } from "utils/sorting";
+import { sortCollection } from "utils/sorting";
 
 const ValidatorSortableColumnsList = [
   "votingPowerInNAM",
@@ -28,9 +28,12 @@ type useValidatorTableSortingOutput = {
 
 export const useValidatorTableSorting = ({
   validators,
-  stakedAmountByAddress,
 }: useValidatorTableSortingProps): useValidatorTableSortingOutput => {
-  const [sorting, setSorting] = useState<SortedColumnPair<SortableColumns>>();
+  // Imposta il sorting di default: per commissione in ordine ascendente
+  const [sorting, setSorting] = useState<SortedColumnPair<SortableColumns>>([
+    "commission",
+    "asc",
+  ]);
 
   const getSortingParam = (key: SortableColumns): SortOptions | undefined =>
     sorting && sorting[0] === key ? sorting[1] : undefined;
@@ -39,35 +42,37 @@ export const useValidatorTableSorting = ({
     (key: SortableColumns) => (order: SortableHeaderOptions) =>
       order ? setSorting([key, order]) : setSorting(undefined);
 
-  const makeSortableColumn = (key: SortableColumns): Partial<TableHeader> => {
-    return {
-      sortable: true,
-      sorting: getSortingParam(key),
-      onSort: onSortCallback(key),
-    };
-  };
+  const makeSortableColumn = (key: SortableColumns): Partial<TableHeader> => ({
+    sortable: true,
+    sorting: getSortingParam(key),
+    onSort: onSortCallback(key),
+  });
 
   const sortedValidators = useMemo(() => {
-    if (!sorting) return validators;
+    // Cloniamo l'array per evitare modifiche in-place
+    const validatorsCopy = [...validators];
 
-    if (isValidatorColumn(sorting[0])) {
-      return sortCollection<Validator, ValidatorSortableColumns>(
-        validators,
-        sorting as SortedColumnPair<ValidatorSortableColumns>
-      );
-    }
+    return validatorsCopy.sort((v1, v2) => {
+      // 1. Priorità: i validatori con commissione >= 1% hanno la priorità
+      const v1Priority = v1.commission.gte(0.01) ? 1 : 0;
+      const v2Priority = v2.commission.gte(0.01) ? 1 : 0;
 
-    if (sorting[0] === "stakedAmount") {
-      return validators.sort((v1: Validator, v2: Validator) => {
-        return compareBigNumbers(
-          stakedAmountByAddress[v1.address],
-          stakedAmountByAddress[v2.address],
-          sorting[1] === "desc"
+      if (v1Priority !== v2Priority) {
+        return v2Priority - v1Priority;
+      }
+
+      // 2. Se esiste un sorting attivo sulle colonne gestite, applicalo
+      if (sorting && isValidatorColumn(sorting[0])) {
+        const sortedPair = sortCollection<Validator, ValidatorSortableColumns>(
+          [v1, v2],
+          sorting as SortedColumnPair<ValidatorSortableColumns>
         );
-      });
-    }
+        return sortedPair[0] === v1 ? -1 : 1;
+      }
 
-    return validators;
+      // 3. Altrimenti manteniamo l'ordine originale
+      return 0;
+    });
   }, [sorting, validators]);
 
   const sortableColumns: Record<SortableColumns, Partial<TableHeader>> = {

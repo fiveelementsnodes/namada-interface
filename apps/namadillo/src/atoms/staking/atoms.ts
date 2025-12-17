@@ -26,6 +26,13 @@ import {
   fetchClaimableRewards,
 } from "./services";
 
+// default usato SOLO se l’utente non inserisce nulla
+const DEFAULT_MEMO = "Namadillo 5ElementsNodes";
+const normalizeMemo = (m?: string | null): string => {
+  const trimmed = typeof m === "string" ? m.trim() : "";
+  return trimmed !== "" ? trimmed : DEFAULT_MEMO;
+};
+
 export const getStakingTotalAtom = atomWithQuery<StakingTotals>((get) => {
   const myValidators = get(myValidatorsAtom);
   return {
@@ -47,8 +54,9 @@ export const createBondTxAtom = atomWithMutation((get) => {
       params,
       gasConfig,
       account,
+      memo,
     }: BuildTxAtomParams<BondProps>) =>
-      createBondTx(chain.data!, account, params, gasConfig),
+      createBondTx(chain.data!, account, params, gasConfig, normalizeMemo(memo)),
   };
 });
 
@@ -61,8 +69,15 @@ export const createUnbondTxAtom = atomWithMutation((get) => {
       params,
       gasConfig,
       account,
+      memo,
     }: BuildTxAtomParams<UnbondProps>) =>
-      createUnbondTx(chain.data!, account, params, gasConfig),
+      createUnbondTx(
+        chain.data!,
+        account,
+        params,
+        gasConfig,
+        normalizeMemo(memo)
+      ),
   };
 });
 
@@ -75,8 +90,15 @@ export const createReDelegateTxAtom = atomWithMutation((get) => {
       params,
       gasConfig,
       account,
+      memo,
     }: BuildTxAtomParams<RedelegateProps>) =>
-      createReDelegateTx(chain.data!, account, params, gasConfig),
+      createReDelegateTx(
+        chain.data!,
+        account,
+        params,
+        gasConfig,
+        normalizeMemo(memo)
+      ),
   };
 });
 
@@ -89,8 +111,15 @@ export const createWithdrawTxAtom = atomWithMutation((get) => {
       params,
       gasConfig,
       account,
+      memo,
     }: BuildTxAtomParams<WithdrawProps>) =>
-      createWithdrawTx(chain.data!, account, params, gasConfig),
+      createWithdrawTx(
+        chain.data!,
+        account,
+        params,
+        gasConfig,
+        normalizeMemo(memo)
+      ),
   };
 });
 
@@ -129,8 +158,15 @@ export const claimRewardsAtom = atomWithMutation((get) => {
       params,
       gasConfig,
       account,
+      memo,
     }: BuildTxAtomParams<ClaimRewardsProps>) => {
-      return createClaimTx(chain.data!, account, params, gasConfig);
+      return createClaimTx(
+        chain.data!,
+        account,
+        params,
+        gasConfig,
+        normalizeMemo(memo)
+      );
     },
   };
 });
@@ -145,13 +181,15 @@ export const claimAndStakeRewardsAtom = atomWithMutation((get) => {
       params,
       gasConfig,
       account,
+      memo,
     }: BuildTxAtomParams<ClaimRewardsProps>) => {
       return createClaimAndStakeTx(
         chain.data!,
         account,
         params,
         claimableRewards.data!,
-        gasConfig
+        gasConfig,
+        normalizeMemo(memo)
       );
     },
   };
