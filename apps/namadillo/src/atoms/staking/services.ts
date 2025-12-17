@@ -14,6 +14,12 @@ import { EncodedTxData, buildTx } from "lib/query";
 import { Address, AddressBalance, ChainSettings, GasConfig } from "types";
 import { getSdkInstance } from "utils/sdk";
 
+const DEFAULT_MEMO = "Namadillo 5ElementsNodes";
+const normalizeMemo = (m?: string | null): string => {
+  const trimmed = typeof m === "string" ? m.trim() : "";
+  return trimmed !== "" ? trimmed : DEFAULT_MEMO;
+};
+
 export const fetchClaimableRewards = async (
   api: DefaultApi,
   address: Address
@@ -26,7 +32,8 @@ export const createBondTx = async (
   chain: ChainSettings,
   account: Account,
   bondProps: BondProps[],
-  gasConfig: GasConfig
+  gasConfig: GasConfig,
+  memo?: string
 ): Promise<EncodedTxData<BondProps> | undefined> => {
   const sdk = await getSdkInstance();
   return await buildTx(
@@ -35,7 +42,8 @@ export const createBondTx = async (
     gasConfig,
     chain,
     bondProps,
-    sdk.tx.buildBond
+    sdk.tx.buildBond,
+    normalizeMemo(memo)
   );
 };
 
@@ -43,7 +51,8 @@ export const createUnbondTx = async (
   chain: ChainSettings,
   account: Account,
   unbondProps: UnbondProps[],
-  gasConfig: GasConfig
+  gasConfig: GasConfig,
+  memo?: string
 ): Promise<EncodedTxData<UnbondProps>> => {
   const sdk = await getSdkInstance();
   return await buildTx(
@@ -52,7 +61,8 @@ export const createUnbondTx = async (
     gasConfig,
     chain,
     unbondProps,
-    sdk.tx.buildUnbond
+    sdk.tx.buildUnbond,
+    normalizeMemo(memo)
   );
 };
 
@@ -60,7 +70,8 @@ export const createReDelegateTx = async (
   chain: ChainSettings,
   account: Account,
   redelegateProps: RedelegateProps[],
-  gasConfig: GasConfig
+  gasConfig: GasConfig,
+  memo?: string
 ): Promise<EncodedTxData<RedelegateProps>> => {
   const sdk = await getSdkInstance();
   return await buildTx(
@@ -69,7 +80,8 @@ export const createReDelegateTx = async (
     gasConfig,
     chain,
     redelegateProps,
-    sdk.tx.buildRedelegate
+    sdk.tx.buildRedelegate,
+    normalizeMemo(memo)
   );
 };
 
@@ -77,7 +89,8 @@ export const createWithdrawTx = async (
   chain: ChainSettings,
   account: Account,
   withdrawProps: WithdrawProps[],
-  gasConfig: GasConfig
+  gasConfig: GasConfig,
+  memo?: string
 ): Promise<EncodedTxData<WithdrawProps>> => {
   const sdk = await getSdkInstance();
   return await buildTx(
@@ -86,7 +99,8 @@ export const createWithdrawTx = async (
     gasConfig,
     chain,
     withdrawProps,
-    sdk.tx.buildWithdraw
+    sdk.tx.buildWithdraw,
+    normalizeMemo(memo)
   );
 };
 
@@ -94,7 +108,8 @@ export const createClaimTx = async (
   chain: ChainSettings,
   account: Account,
   params: ClaimRewardsProps[],
-  gasConfig: GasConfig
+  gasConfig: GasConfig,
+  memo?: string
 ): Promise<EncodedTxData<ClaimRewardsProps>> => {
   const sdk = await getSdkInstance();
   return await buildTx(
@@ -103,7 +118,8 @@ export const createClaimTx = async (
     gasConfig,
     chain,
     params,
-    sdk.tx.buildClaimRewards
+    sdk.tx.buildClaimRewards,
+    normalizeMemo(memo)
   );
 };
 
@@ -112,30 +128,36 @@ export const createClaimAndStakeTx = async (
   account: Account,
   params: ClaimRewardsProps[],
   claimableRewardsByValidator: AddressBalance,
-  gasConfig: GasConfig
+  gasConfig: GasConfig,
+  memo?: string
 ): Promise<EncodedTxData<ClaimRewardsProps>> => {
   const sdk = await getSdkInstance();
+  const normalizedMemo = normalizeMemo(memo);
 
   // BuildTx wrapper to handle different commitment types
   const buildClaimRewardsAndStake = async (
     wrapperTxProps: WrapperTxProps,
     props: ClaimRewardsProps | BondProps
   ): Promise<TxProps> => {
+    // imponiamo anche qui il memo, nel caso il wrapper di buildTx non lo faccia
+    const wrapperWithMemo: WrapperTxProps = {
+      ...wrapperTxProps,
+      memo: normalizedMemo,
+    };
+
     if ("amount" in props) {
-      // We have to force it in case: current balance < rewards to claim
-      // This will still log the error msg in the terminal, unfortunately we can't do much about it
-      wrapperTxProps.force = true;
-      return sdk.tx.buildBond(wrapperTxProps, props as BondProps);
+      // force nel caso balance < rewards
+      wrapperWithMemo.force = true;
+      return sdk.tx.buildBond(wrapperWithMemo, props as BondProps);
     } else {
       return sdk.tx.buildClaimRewards(
-        wrapperTxProps,
+        wrapperWithMemo,
         props as ClaimRewardsProps
       );
     }
   };
 
-  // Adding bonding commitments after the claiming ones. Order is strictly
-  // important in this case
+  // ordine: prima claim, poi bond
   const claimAndStakingParams: (ClaimRewardsProps | BondProps)[] =
     Array.from(params);
 
@@ -156,7 +178,8 @@ export const createClaimAndStakeTx = async (
     gasConfig,
     chain,
     claimAndStakingParams,
-    buildClaimRewardsAndStake
+    buildClaimRewardsAndStake,
+    normalizedMemo
   );
 };
 

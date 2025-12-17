@@ -32,6 +32,13 @@ import {
 } from "workers/MaspTxWorker";
 import MaspTxWorker from "workers/MaspTxWorker?worker";
 
+// ✅ Default memo + normalizzatore (trim + fallback)
+const DEFAULT_MEMO = "Namadillo 5ElementsNodes";
+const normalizeMemo = (m?: string | null): string => {
+  const trimmed = typeof m === "string" ? m.trim() : "";
+  return trimmed !== "" ? trimmed : DEFAULT_MEMO;
+};
+
 export type WorkerTransferParams = {
   sourceAddress: Address;
   destinationAddress: Address;
@@ -93,6 +100,7 @@ export const createTransparentTransferTx = async (
   memo?: string
 ): Promise<EncodedTxData<TransparentTransferProps> | undefined> => {
   const sdk = await getSdkInstance();
+  const normalizedMemo = normalizeMemo(memo);
   return await buildTx(
     sdk,
     account,
@@ -100,7 +108,7 @@ export const createTransparentTransferTx = async (
     chain,
     props,
     sdk.tx.buildTransparentTransfer,
-    memo
+    normalizedMemo
   );
 };
 
@@ -116,6 +124,7 @@ export const createShieldedTransferTx = async (
   disposableSigner: GenDisposableSignerResponse,
   memo?: string
 ): Promise<EncodedTxData<ShieldedTransferProps> | undefined> => {
+  const normalizedMemo = normalizeMemo(memo);
   const { publicKey: signerPublicKey } = disposableSigner;
   const source = props[0]?.data[0]?.source;
   const destination = props[0]?.data[0]?.target;
@@ -151,7 +160,7 @@ export const createShieldedTransferTx = async (
           gasConfig,
           props: [msgValue],
           chain,
-          memo,
+          memo: normalizedMemo, // ✅
         },
       };
       return (await workerLink.shieldedTransfer(msg)).payload;
@@ -170,6 +179,7 @@ export const createShieldingTransferTx = async (
   rpcUrl: string,
   memo?: string
 ): Promise<EncodedTxData<ShieldingTransferProps> | undefined> => {
+  const normalizedMemo = normalizeMemo(memo);
   const source = props[0]?.data[0]?.source;
   const destination = props[0]?.target;
   const token = props[0]?.data[0]?.token;
@@ -202,7 +212,7 @@ export const createShieldingTransferTx = async (
           props: [msgValue],
           chain,
           publicKeyRevealed,
-          memo,
+          memo: normalizedMemo, // ✅
         },
       };
       return (await workerLink.shield(msg)).payload;
@@ -222,6 +232,7 @@ export const createUnshieldingTransferTx = async (
   disposableSigner: GenDisposableSignerResponse,
   memo?: string
 ): Promise<EncodedTxData<UnshieldingTransferProps> | undefined> => {
+  const normalizedMemo = normalizeMemo(memo);
   const { publicKey: signerPublicKey } = disposableSigner;
 
   const source = props[0]?.source;
@@ -259,7 +270,7 @@ export const createUnshieldingTransferTx = async (
           gasConfig,
           props: [msgValue],
           chain,
-          memo,
+          memo: normalizedMemo, // ✅
         },
       };
       return (await workerLink.unshield(msg)).payload;
@@ -276,6 +287,8 @@ export const createIbcTx = async (
   signerPublicKey: string,
   memo?: string
 ): Promise<EncodedTxData<IbcTransferProps>> => {
+  const normalizedMemo = normalizeMemo(memo);
+
   let bparams: BparamsMsgValue[] | undefined;
   if (account.type === AccountType.Ledger) {
     const sdk = await getSdkInstance();
@@ -309,7 +322,7 @@ export const createIbcTx = async (
           gasConfig,
           props: [msgValue],
           chain,
-          memo,
+          memo: normalizedMemo, // ✅ importantissimo per IBC
           publicKeyRevealed,
         },
       };

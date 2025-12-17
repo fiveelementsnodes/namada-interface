@@ -25,6 +25,13 @@ import {
 import { Bond as NamadaIndexerBond } from "@namada/indexer-client";
 import { shouldUpdateProposalAtom } from "atoms/etc";
 
+// default usato SOLO se l’utente non inserisce il memo
+const DEFAULT_MEMO = "Namadillo 5ElementsNodes";
+const normalizeMemo = (m?: string | null): string => {
+  const trimmed = typeof m === "string" ? m.trim() : "";
+  return trimmed !== "" ? trimmed : DEFAULT_MEMO;
+};
+
 export const proposalFamily = atomFamily((id: bigint) =>
   atomWithQuery((get) => {
     const api = get(indexerApiAtom);
@@ -130,7 +137,6 @@ export const paginatedProposalsFamily = atomFamily(
       };
     }),
   (a, b) =>
-    // TODO: there might be a better way to do this equality check
     a?.page === b?.page &&
     a?.status === b?.status &&
     a?.type === b?.type &&
@@ -181,10 +187,12 @@ export const canVoteAtom = atomFamily((proposalStartEpoch: bigint) =>
   })
 );
 
+// 👇 aggiungo memo qui
 type CreateVoteTxArgs = {
   proposalId: bigint;
   vote: VoteType;
   gasConfig: GasConfig;
+  memo?: string;
 };
 
 export const createVoteTxAtom = atomWithMutation((get) => {
@@ -198,6 +206,7 @@ export const createVoteTxAtom = atomWithMutation((get) => {
       proposalId,
       vote,
       gasConfig,
+      memo,
     }: CreateVoteTxArgs): Promise<TransactionPair<VoteProposalProps>> => {
       if (typeof account.data === "undefined") {
         throw new Error("no account");
@@ -207,7 +216,8 @@ export const createVoteTxAtom = atomWithMutation((get) => {
         vote,
         account.data,
         gasConfig,
-        chain.data!
+        chain.data!,
+        normalizeMemo(memo) // 👈 passiamo memo già normalizzato
       );
     },
   };

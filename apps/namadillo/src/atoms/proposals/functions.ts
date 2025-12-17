@@ -34,6 +34,13 @@ import { GasConfig } from "types";
 import { ChainSettings } from "types";
 import { getSdkInstance } from "utils/sdk";
 
+// 👇 aggiunto per i memo di governance
+const DEFAULT_MEMO = "Namadillo 5ElementsNodes";
+const normalizeMemo = (m?: string | null): string => {
+  const trimmed = typeof m === "string" ? m.trim() : "";
+  return trimmed !== "" ? trimmed : DEFAULT_MEMO;
+};
+
 const pgfTargetSchema = t.type({
   Internal: t.type({
     target: t.string,
@@ -385,11 +392,12 @@ export const createVoteProposalTx = async (
   vote: VoteType,
   account: Account,
   gasConfig: GasConfig,
-  chain: ChainSettings
+  chain: ChainSettings,
+  memo?: string
 ): Promise<TransactionPair<VoteProposalProps>> => {
   try {
     const sdk = await getSdkInstance();
-    const voteProposalProps = {
+    const voteProposalProps: VoteProposalProps = {
       signer: account.address,
       proposalId,
       vote,
@@ -400,7 +408,8 @@ export const createVoteProposalTx = async (
       gasConfig,
       chain,
       [voteProposalProps],
-      sdk.tx.buildVoteProposal
+      sdk.tx.buildVoteProposal,
+      normalizeMemo(memo)
     );
     return await signEncodedTx(encodedTx, account.address);
   } catch (err) {
@@ -408,3 +417,5 @@ export const createVoteProposalTx = async (
     throw err;
   }
 };
+
+export * from "./atoms";

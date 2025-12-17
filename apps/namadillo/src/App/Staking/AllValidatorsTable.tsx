@@ -14,6 +14,7 @@ import { useValidatorFilter } from "hooks/useValidatorFilter";
 import { useValidatorTableSorting } from "hooks/useValidatorTableSorting";
 import { useAtomValue } from "jotai";
 import { useState } from "react";
+import { IoWarning } from "react-icons/io5";
 import { Validator } from "types";
 import { ValidatorAlias } from "./ValidatorAlias";
 import { ValidatorThumb } from "./ValidatorThumb";
@@ -28,6 +29,8 @@ export const AllValidatorsTable = ({
   resultsPerPage = 10,
   initialPage = 0,
 }: AllValidatorsProps): JSX.Element => {
+  const SPECIAL_VALIDATOR_ADDRESS =
+    "tnam1qx4ztg0ca0tu2aw056ksuek5y58tmg454shk6svw";
   const validators = useAtomValue(allValidatorsAtom);
   const [searchTerm, setSearchTerm] = useState("");
   const userHasAccount = useUserHasAccount();
@@ -44,6 +47,17 @@ export const AllValidatorsTable = ({
       validators: filteredValidators,
       stakedAmountByAddress: {},
     });
+
+  // Aggiungi il validatore speciale all'inizio della lista
+  const prioritizedValidators = sortedAndFilteredValidators.sort((a, b) => {
+    if (a.address === SPECIAL_VALIDATOR_ADDRESS) {
+      return -1;
+    }
+    if (b.address === SPECIAL_VALIDATOR_ADDRESS) {
+      return 1;
+    }
+    return 0;
+  });
 
   const headers = [
     "",
@@ -71,10 +85,15 @@ export const AllValidatorsTable = ({
         alt={validator.alias ?? validator.address}
       />,
       // Alias:
-      <ValidatorAlias
-        key={`validator-alias-${validator.address}`}
-        alias={validator.alias}
-      />,
+      <div key={`validator-alias-${validator.address}`}>
+        <ValidatorAlias alias={validator.alias} />
+        {validator.votingPowerInNAM &&
+          validator.votingPowerInNAM.lt(new BigNumber(1000)) && (
+            <span className="text-yellow-500 text-sm ml-2">
+              <IoWarning className="mr-1" /> Below threshold
+            </span>
+          )}
+      </div>,
       // Address:
       <WalletAddress
         key={`address-${validator.address}`}
@@ -133,7 +152,7 @@ export const AllValidatorsTable = ({
           <div className="flex flex-col h-[490px] overflow-hidden">
             <ValidatorsTable
               id="all-validators"
-              validatorList={sortedAndFilteredValidators}
+              validatorList={prioritizedValidators}
               headers={headers}
               initialPage={initialPage}
               resultsPerPage={resultsPerPage}
@@ -145,3 +164,5 @@ export const AllValidatorsTable = ({
     </AtomErrorBoundary>
   );
 };
+
+export default AllValidatorsTable;

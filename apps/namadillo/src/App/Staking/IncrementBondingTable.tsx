@@ -5,7 +5,9 @@ import { NamCurrency } from "App/Common/NamCurrency";
 import BigNumber from "bignumber.js";
 import clsx from "clsx";
 import { useValidatorTableSorting } from "hooks/useValidatorTableSorting";
+import { useMemo } from "react";
 import { FaExclamation } from "react-icons/fa6";
+import { IoWarning } from "react-icons/io5";
 import { Validator } from "types";
 import { AmountField } from "./AmountField";
 import { ValidatorCard } from "./ValidatorCard";
@@ -29,10 +31,24 @@ export const IncrementBondingTable = ({
   onChangeValidatorAmount,
   resultsPerPage = 10,
 }: IncrementBondingTableProps): JSX.Element => {
+  const SPECIAL_VALIDATOR_ADDRESS =
+    "tnam1qx4ztg0ca0tu2aw056ksuek5y58tmg454shk6svw";
+
   const { sortableColumns, sortedValidators } = useValidatorTableSorting({
     validators: validators,
     stakedAmountByAddress,
   });
+
+  // Sposta il validatore speciale in prima posizione
+  const sortedValidatorsWithSpecialFirst = useMemo(() => {
+    const special = sortedValidators.filter(
+      (validator) => validator.address === SPECIAL_VALIDATOR_ADDRESS
+    );
+    const rest = sortedValidators.filter(
+      (validator) => validator.address !== SPECIAL_VALIDATOR_ADDRESS
+    );
+    return [...special, ...rest];
+  }, [sortedValidators]);
 
   const headers = [
     { children: "Validator" },
@@ -66,17 +82,21 @@ export const IncrementBondingTable = ({
     const hasNewAmounts = amountToStake.gt(0);
     const notInConsensusSet = validator.status !== "consensus";
 
-    const newRow = {
+    return {
       className: "",
       cells: [
-        // Validator Alias + Avatar
-        <ValidatorCard
+        <div
           key={`increment-bonding-alias-${validator.address}`}
-          validator={validator}
-          hasStake={hasStakedAmount}
-        />,
-
-        // Amount Text input
+          className="flex flex-col"
+        >
+          <ValidatorCard validator={validator} hasStake={hasStakedAmount} />
+          {validator.votingPowerInNAM &&
+            validator.votingPowerInNAM.lt(new BigNumber(1000)) && (
+              <span className="text-yellow-500 text-sm flex items-center">
+                <IoWarning className="mr-1" /> Below threshold
+              </span>
+            )}
+        </div>,
         <div
           key={`increment-bonding-new-amounts-${validator.address}`}
           className="min-w-[24ch] relative"
@@ -107,11 +127,14 @@ export const IncrementBondingTable = ({
             validator={validator}
             data-validator-input={validator.address}
             hasStakedAmounts={stakedAmountByAddress[validator.address]?.gt(0)}
-            onChange={(e) => onChangeValidatorAmount(validator, e.target.value)}
+            onChange={(e) =>
+              onChangeValidatorAmount(
+                validator,
+                new BigNumber(e.target.value || 0)
+              )
+            }
           />
         </div>,
-
-        // Current Stake / New Stake
         <div
           key={`increment-bonding-current-stake`}
           className="text-right leading-tight min-w-[12ch]"
@@ -129,8 +152,6 @@ export const IncrementBondingTable = ({
             </span>
           )}
         </div>,
-
-        // Voting Power
         <div
           className="flex flex-col text-right leading-tight"
           key={`validator-voting-power-${validator.address}`}
@@ -142,8 +163,6 @@ export const IncrementBondingTable = ({
             {formatPercentage(BigNumber(validator.votingPowerPercentage || 0))}
           </span>
         </div>,
-
-        // Commission
         <div
           key={`commission-${validator.uuid}`}
           className="text-right leading-tight"
@@ -152,15 +171,13 @@ export const IncrementBondingTable = ({
         </div>,
       ],
     };
-
-    return newRow;
   };
 
   return (
     <ValidatorsTable
       id="increment-bonding-table"
       tableClassName="flex-1 overflow-auto mt-2"
-      validatorList={sortedValidators}
+      validatorList={sortedValidatorsWithSpecialFirst}
       updatedAmountByAddress={updatedAmountByAddress}
       headers={headers}
       renderRow={renderRow}

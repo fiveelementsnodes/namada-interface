@@ -21,7 +21,7 @@ type ShieldPayload = {
   props: ShieldingTransferProps[];
   chain: ChainSettings;
   publicKeyRevealed: boolean;
-  memo?: string;
+  memo?: string; // ← opzionale: user override, altrimenti default
 };
 export type Shield = WebWorkerMessage<"shield", ShieldPayload>;
 export type ShieldDone = WebWorkerMessage<
@@ -34,7 +34,7 @@ type UnshieldPayload = {
   gasConfig: GasConfig;
   props: UnshieldingTransferProps[];
   chain: ChainSettings;
-  memo?: string;
+  memo?: string; // ← opzionale
   maspFeePaymentProps?: UnshieldingTransferProps & { memo: string }; // Optional masp fee payment properties
 };
 export type Unshield = WebWorkerMessage<"unshield", UnshieldPayload>;
@@ -48,7 +48,7 @@ type ShieldedTransferPayload = {
   gasConfig: GasConfig;
   props: ShieldedTransferProps[];
   chain: ChainSettings;
-  memo?: string;
+  memo?: string; // ← opzionale
   maspFeePaymentProps?: UnshieldingTransferProps & { memo: string }; // Optional masp fee payment properties
 };
 export type ShieldedTransfer = WebWorkerMessage<
@@ -65,7 +65,7 @@ type IbcTransferPayload = {
   gasConfig: GasConfig;
   props: IbcTransferProps[];
   chain: ChainSettings;
-  memo?: string;
+  memo?: string; // ← opzionale
   publicKeyRevealed: boolean;
 };
 export type IbcTransfer = WebWorkerMessage<"ibc-transfer", IbcTransferPayload>;

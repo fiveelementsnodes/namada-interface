@@ -32,6 +32,12 @@ import {
 
 export const transferAmountAtom = atom<BigNumber | undefined>(undefined);
 
+const DEFAULT_MEMO = "Namadillo 5ElementsNodes";
+const normalizeMemo = (m?: string | null): string => {
+  const trimmed = typeof m === "string" ? m.trim() : "";
+  return trimmed !== "" ? trimmed : DEFAULT_MEMO;
+};
+
 export const createTransparentTransferAtom = atomWithMutation((get) => {
   const chain = get(chainAtom);
   return {
@@ -48,7 +54,7 @@ export const createTransparentTransferAtom = atomWithMutation((get) => {
         account,
         params,
         gasConfig,
-        memo
+        normalizeMemo(memo)
       );
     },
   };
@@ -86,7 +92,7 @@ export const createShieldedTransferAtom = atomWithMutation((get) => {
         gasConfig,
         rpcUrl,
         signer,
-        memo
+        normalizeMemo(memo)
       );
     },
   };
@@ -95,6 +101,7 @@ export const createShieldedTransferAtom = atomWithMutation((get) => {
 export const createShieldingTransferAtom = atomWithMutation((get) => {
   const chain = get(chainAtom);
   const rpcUrl = get(rpcUrlAtom);
+
   return {
     mutationKey: ["create-shielding-transfer-tx"],
     enabled: chain.isSuccess,
@@ -110,7 +117,7 @@ export const createShieldingTransferAtom = atomWithMutation((get) => {
         params,
         gasConfig,
         rpcUrl,
-        memo
+        normalizeMemo(memo)
       ),
   };
 });
@@ -150,7 +157,7 @@ export const createUnshieldingTransferAtom = atomWithMutation((get) => {
         gasConfig,
         rpcUrl,
         signer,
-        memo
+        normalizeMemo(memo)
       );
     },
   };
@@ -236,7 +243,7 @@ export const createIbcTxAtom = atomWithMutation((get) => {
         gasConfig,
         rpcUrl,
         signer?.publicKey,
-        memo
+        normalizeMemo(memo)
       );
     },
   };
