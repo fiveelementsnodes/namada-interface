@@ -29,22 +29,60 @@ export const fetchAllValidators = async (
   );
 };
 
+const toNumber = (v: unknown, fallback: number): number => {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return fallback;
+};
+
 export const fetchMyBondedAmounts = async (
   api: DefaultApi,
   account: Account
 ): Promise<MergedBond[]> => {
-  const bondsResponse = await api.apiV1PosMergedBondsAddressGet(
-    account.address
-  );
-  return bondsResponse.data.results;
+  const all: MergedBond[] = [];
+  let page = 1;
+  const MAX_PAGES = 10_000;
+
+  while (page <= MAX_PAGES) {
+    const resp = await api.apiV1PosMergedBondsAddressGet(account.address, page);
+
+    const results: MergedBond[] = resp.data?.results ?? [];
+    all.push(...results);
+
+    const totalPages = toNumber(resp.data?.pagination?.totalPages, 1);
+    if (page >= totalPages) break;
+
+    page += 1;
+  }
+
+  return all;
 };
 
 export const fetchMyUnbondedAmounts = async (
   api: DefaultApi,
   account: Account
 ): Promise<Unbond[]> => {
-  const unbondsResponse = await api.apiV1PosMergedUnbondsAddressGet(
-    account.address
-  );
-  return unbondsResponse.data.results;
+  const all: Unbond[] = [];
+  let page = 1;
+  const MAX_PAGES = 10_000;
+
+  while (page <= MAX_PAGES) {
+    const resp = await api.apiV1PosMergedUnbondsAddressGet(
+      account.address,
+      page
+    );
+
+    const results: Unbond[] = resp.data?.results ?? [];
+    all.push(...results);
+
+    const totalPages = toNumber(resp.data?.pagination?.totalPages, 1);
+    if (page >= totalPages) break;
+
+    page += 1;
+  }
+
+  return all;
 };
